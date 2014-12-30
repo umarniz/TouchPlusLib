@@ -18,7 +18,7 @@
     <ClCompile Include="src\Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\VideoCapture.cpp">
+    <ClCompile Include="src\DSVideoCapture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,7 +26,10 @@
     <ClInclude Include="src\qedit.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\VideoCapture.h">
+    <ClInclude Include="src\TouchPlus.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DSVideoCapture.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

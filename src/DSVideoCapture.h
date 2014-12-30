@@ -9,6 +9,7 @@
 #include <initguid.h>
 
 class __declspec(uuid("6B652FFF-11FE-4fce-92AD-0266B5D7C78F")) SampleGrabber;  
+class __declspec(uuid("0579154A-2B53-4994-B0D0-E773148EFF85")) SampleGrabberCB;
 
 //class __declspec(uuid("17CCA71B-ECD7-11D0-B908-00A0C9223196")) CLSID_TouchCamera;
 //class __declspec(uuid("C1F400A0-3F08-11D3-9F0B-006008039E37")) CLSID_SampleGrabber;
@@ -25,11 +26,17 @@ DEFINE_GUID(CLSID_SampleGrabber2, 0xC1F400A0, 0x3F08, 0x11D3, 0x9F, 0x0B, 0x00, 
 DEFINE_GUID(CLSID_VideoRenderer, 0xB87BEB7B, 0x8D29, 0x423F, 0xAE, 0x4D, 0x65, 0x82, 0xC1, 0x01, 0x75, 0xAC); //quartz.dll
 
 
-class VideoCapture
+class DSVideoCapture
 {
 public:
-	void Start();
-	void Stop();
+	HRESULT Start();
+	bool GrabFrame(long* byteData);
+	void Finish();
+
+	int GetSampleWidth();
+	int GetSampleHeight();
+	int GetSampleChannels();
+
 
 private:
 	HRESULT BuildGraph(IGraphBuilder *pGraph);
@@ -38,4 +45,17 @@ private:
 
 	HRESULT EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum);
 	IBaseFilter* FindTouchFilter(IEnumMoniker *pEnum);
+
+	// Members
+	BITMAPINFO bitmapInfo;
+	bool initSuccess;
+	CComPtr<ISampleGrabber> pSampleGrabber;
+	CComQIPtr<IMediaControl, &IID_IMediaControl> mediaControl;
+
+	CComQIPtr<IMediaEvent, &IID_IMediaEvent> mediaEvent;
+
+	// Window Parameters
+	long bSize;
+	bool stop;
+	MSG msg;
 };

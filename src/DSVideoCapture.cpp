@@ -1,4 +1,4 @@
-#include "VideoCapture.h"
+#include "DSVideoCapture.h"
 
 //change this macro to fit your style of error handling
 #define CHECK_HR(hr, msg) if (hrcheck(hr, msg)) return hr;
@@ -8,17 +8,12 @@ BOOL hrcheck(HRESULT hr, TCHAR* errtext)
 	if (hr >= S_OK)
 		return FALSE;
 		
-	//TCHAR szErr[MAX_ERROR_TEXT_LEN];
-	//DWORD res = AMGetErrorText(hr, szErr, MAX_ERROR_TEXT_LEN);
-	
-	//if (res)
-	//	printf("Error %x: %s\n%s\n",hr, errtext,szErr);
-	//else
-		printf("Error %x: %s\n", hr, errtext);
+	printf("Error %x: %s\n", hr, errtext);
+
 	return TRUE;
 }
 
-CComPtr<IPin> VideoCapture::GetPin(IBaseFilter *pFilter, LPCOLESTR pinname)
+CComPtr<IPin> DSVideoCapture::GetPin(IBaseFilter *pFilter, LPCOLESTR pinname)
 {
 	IEnumPins *pEnum = NULL;
 	CComPtr<IPin> pPin;
@@ -44,7 +39,7 @@ CComPtr<IPin> VideoCapture::GetPin(IBaseFilter *pFilter, LPCOLESTR pinname)
 	return NULL;
 }
 
-HRESULT VideoCapture::EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum)
+HRESULT DSVideoCapture::EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum)
 {
     // Create the System Device Enumerator.
     ICreateDevEnum *pDevEnum;
@@ -65,7 +60,7 @@ HRESULT VideoCapture::EnumerateDevices(REFGUID category, IEnumMoniker **ppEnum)
 }
 
 
-IBaseFilter* VideoCapture::FindTouchFilter(IEnumMoniker *pEnum)
+IBaseFilter* DSVideoCapture::FindTouchFilter(IEnumMoniker *pEnum)
 {
     IMoniker *pMoniker = NULL;
 
@@ -133,13 +128,11 @@ IBaseFilter* VideoCapture::FindTouchFilter(IEnumMoniker *pEnum)
 	return false;
 }
 
-
-HRESULT VideoCapture::BuildGraph(IGraphBuilder *pGraph)
+HRESULT DSVideoCapture::BuildGraph(IGraphBuilder *pGraph)
 {
 	HRESULT hr = S_OK;
 	
 	CComPtr<IBaseFilter> pTouchCamera;
-	CComPtr<ISampleGrabber> pSampleGrabber;
 	CComPtr<IBaseFilter> pSampleGrabberF;
 
 	IEnumMoniker *pEnum;
@@ -173,24 +166,46 @@ HRESULT VideoCapture::BuildGraph(IGraphBuilder *pGraph)
 	AM_MEDIA_TYPE pSampleGrabber_pmt;
 	ZeroMemory(&pSampleGrabber_pmt, sizeof(AM_MEDIA_TYPE));
 	pSampleGrabber_pmt.majortype = MEDIATYPE_Video;
-	pSampleGrabber_pmt.subtype = MEDIASUBTYPE_MJPG;
+	pSampleGrabber_pmt.subtype = MEDIASUBTYPE_RGB24;
 	pSampleGrabber_pmt.formattype = FORMAT_VideoInfo;
 	pSampleGrabber_pmt.bFixedSizeSamples = TRUE;
 	pSampleGrabber_pmt.cbFormat = 88;
-	pSampleGrabber_pmt.lSampleSize = 1843200;
+	pSampleGrabber_pmt.lSampleSize = 2457600;
 	pSampleGrabber_pmt.bTemporalCompression = FALSE;
 	VIDEOINFOHEADER pSampleGrabber_format;
 	ZeroMemory(&pSampleGrabber_format, sizeof(VIDEOINFOHEADER));
-	pSampleGrabber_format.dwBitRate = 884736000;
+	pSampleGrabber_format.dwBitRate = 1179652719;
 	pSampleGrabber_format.AvgTimePerFrame = 166666;
 	pSampleGrabber_format.bmiHeader.biSize = 40;
 	pSampleGrabber_format.bmiHeader.biWidth = 1280;
 	pSampleGrabber_format.bmiHeader.biHeight = 480;
 	pSampleGrabber_format.bmiHeader.biPlanes = 1;
 	pSampleGrabber_format.bmiHeader.biBitCount = 24;
-	pSampleGrabber_format.bmiHeader.biCompression = 1196444237;
-	pSampleGrabber_format.bmiHeader.biSizeImage = 1843200;
+	pSampleGrabber_format.bmiHeader.biSizeImage = 2457600;
 	pSampleGrabber_pmt.pbFormat = (BYTE*)&pSampleGrabber_format;
+
+
+	AM_MEDIA_TYPE pCam_pmt;
+	ZeroMemory(&pCam_pmt, sizeof(AM_MEDIA_TYPE));
+	pCam_pmt.majortype = MEDIATYPE_Video;
+	pCam_pmt.subtype = MEDIASUBTYPE_MJPG;
+	pCam_pmt.formattype = FORMAT_VideoInfo;
+	pCam_pmt.bFixedSizeSamples = TRUE;
+	pCam_pmt.cbFormat = 88;
+	pCam_pmt.lSampleSize = 1843200;
+	pCam_pmt.bTemporalCompression = FALSE;
+	VIDEOINFOHEADER pCamFmt;
+	ZeroMemory(&pCamFmt, sizeof(VIDEOINFOHEADER));
+	pCamFmt.dwBitRate = 884736000;
+	pCamFmt.AvgTimePerFrame = 166666;
+	pCamFmt.bmiHeader.biSize = 40;
+	pCamFmt.bmiHeader.biWidth = 1280;
+	pCamFmt.bmiHeader.biHeight = 480;
+	pCamFmt.bmiHeader.biPlanes = 1;
+	pCamFmt.bmiHeader.biBitCount = 24;
+	pCamFmt.bmiHeader.biCompression = 1196444237;
+	pCamFmt.bmiHeader.biSizeImage = 1843200;
+	pCam_pmt.pbFormat = (BYTE*)&pCamFmt;
 
 	// Get pins for sample grabber and camera
 	CComPtr<IPin> camPin = GetPin(pTouchCamera, L"Capture");
@@ -201,8 +216,11 @@ HRESULT VideoCapture::BuildGraph(IGraphBuilder *pGraph)
 	hr = pSampleGrabber->SetMediaType(&pSampleGrabber_pmt);
 	CHECK_HR(hr, L"Can't set media type to sample grabber");
 
+	pSampleGrabber->SetBufferSamples( TRUE );
+
+	
 	CComQIPtr<IAMStreamConfig, &IID_IAMStreamConfig> camConfig(camPin);
-	hr = camConfig->SetFormat(&pSampleGrabber_pmt);
+	hr = camConfig->SetFormat(&pCam_pmt);
 	CHECK_HR(hr, L"Can't set camera pin format");
 
 
@@ -211,9 +229,6 @@ HRESULT VideoCapture::BuildGraph(IGraphBuilder *pGraph)
 	CHECK_HR(hr, L"Can't add SampleGrabber to graph");
 
 
-	//connect Touch+ Camera and SampleGrabber
-	hr = pGraph->ConnectDirect(camPin, sampleInput, NULL);
-	CHECK_HR(hr, L"Can't connect Touch+ Camera and SampleGrabber");
 
 	printf("add MJPEG Decompressor\n");
 	//add MJPEG Decompressor
@@ -224,42 +239,40 @@ HRESULT VideoCapture::BuildGraph(IGraphBuilder *pGraph)
 
 	CHECK_HR(hr, L"Can't add MJPEG Decompressor to graph");
 	//connect SampleGrabber and MJPEG Decompressor
-	hr = pGraph->ConnectDirect(sampleOutput, GetPin(pMJPEGDecompressor, L"XForm In"), NULL);
+
+	//connect Touch+ Camera and SampleGrabber
+	hr = pGraph->ConnectDirect(camPin, GetPin(pMJPEGDecompressor, L"XForm In"), NULL);
+	CHECK_HR(hr, L"Can't connect Touch+ Camera and SampleGrabber");
+
+	hr = pGraph->ConnectDirect(GetPin(pMJPEGDecompressor, L"XForm Out"), sampleInput, NULL);
 	CHECK_HR(hr, L"Can't connect SampleGrabber and MJPEG Decompressor");
-
-	//add Color Space Converter
-	CComPtr<IBaseFilter> pColorSpaceConverter;
-	hr = pColorSpaceConverter.CoCreateInstance(CLSID_Colour);
-	CHECK_HR(hr, L"Can't create Color Space Converter");
-	hr = pGraph->AddFilter(pColorSpaceConverter, L"Color Space Converter");
-	CHECK_HR(hr, L"Can't add Color Space Converter to graph");
-
-	//connect MJPEG Decompressor and Color Space Converter
-	hr = pGraph->ConnectDirect(GetPin(pMJPEGDecompressor, L"XForm Out"), GetPin(pColorSpaceConverter, L"Input"), NULL);
-	CHECK_HR(hr, L"Can't connect MJPEG Decompressor and Color Space Converter");
 
 	//add Video Renderer
 	CComPtr<IBaseFilter> pVideoRenderer;
-	hr = pVideoRenderer.CoCreateInstance(CLSID_VideoRenderer);
+	//hr = pVideoRenderer.CoCreateInstance(CLSID_VideoRenderer);
+	hr = pVideoRenderer.CoCreateInstance(CLSID_NullRenderer);
 	CHECK_HR(hr, L"Can't create Video Renderer");
 	hr = pGraph->AddFilter(pVideoRenderer, L"Video Renderer");
 	CHECK_HR(hr, L"Can't add Video Renderer to graph");
 
-	CComPtr<IVideoWindow> pVideoWindow;
-	pVideoRenderer->QueryInterface(IID_PPV_ARGS(&pVideoWindow));
-	pVideoWindow->put_Height(480);
-	pVideoWindow->put_Width(1280);
+	hr = pGraph->ConnectDirect(sampleOutput, GetPin(pVideoRenderer, L"In"), NULL);
 
-	//connect Color Space Converter and Video Renderer
-	hr = pGraph->ConnectDirect(GetPin(pColorSpaceConverter, L"XForm Out"), GetPin(pVideoRenderer, L"VMR Input0"), NULL);
-	CHECK_HR(hr, L"Can't connect Color Space Converter and Video Renderer");
+	VIDEOINFOHEADER	*pVideoHeader = (VIDEOINFOHEADER *)pSampleGrabber_pmt.pbFormat;
+
+	// STEP18: Copy the BMP infomation to BITMAPINFO structure
+	ZeroMemory( &bitmapInfo, sizeof(bitmapInfo) );
+	CopyMemory( &bitmapInfo.bmiHeader, &(pVideoHeader->bmiHeader), sizeof(BITMAPINFOHEADER) );
+
+	printf ("Built Filter graph successfully\n");
 
 	return S_OK;
 }
 
-void VideoCapture::Start()
+HRESULT DSVideoCapture::Start()
 {
 	HRESULT hr;
+
+	bSize = 0;
 
 	CoInitialize(NULL);
 
@@ -268,38 +281,82 @@ void VideoCapture::Start()
 	printf("Building graph...\n");
 
 	hr = BuildGraph(graph);
+	CHECK_HR(hr, L"Can't run the graph");
 	if (hr==S_OK)
 	{
-		printf("Running");
+		printf("Running\n");
 		CComQIPtr<IMediaControl, &IID_IMediaControl> mediaControl(graph);
 		hr = mediaControl->Run();
 
-		//CHECK_HR(hr, L"Can't run the graph");
+		mediaEvent = CComQIPtr<IMediaEvent, &IID_IMediaEvent>(graph);
 
-		CComQIPtr<IMediaEvent, &IID_IMediaEvent> mediaEvent(graph);
-		BOOL stop = FALSE;
-		MSG msg;
-		while(!stop)
-		{
-			long ev=0, p1=0, p2=0;
-			Sleep(500);
-			printf(".");
-			while(PeekMessage(&msg, NULL, 0,0, PM_REMOVE))
-			DispatchMessage(&msg);
-			while (mediaEvent->GetEvent(&ev, &p1, &p2, 0)==S_OK)
-			if (ev == EC_COMPLETE || ev == EC_USERABORT)
-			{
-				printf("Done!\n");
-				stop = TRUE;
-			}
-			else if (ev == EC_ERRORABORT)
-			{
-				printf("An error occured: HRESULT=%x\n", p1);
-				mediaControl->Stop();
-				stop = TRUE;
-			}
-			mediaEvent->FreeEventParams(ev, p1, p2);
-		}
+		initSuccess = true;
+
+		return S_OK;
 	}
+}
+
+bool DSVideoCapture::GrabFrame(long* frameData)
+{
+	if (initSuccess)
+	{
+		// Update Camera Input
+		long ev=0, p1=0, p2=0;
+		Sleep(50);
+		printf(".");
+		while(PeekMessage(&msg, NULL, 0,0, PM_REMOVE))
+		DispatchMessage(&msg);
+		while (mediaEvent->GetEvent(&ev, &p1, &p2, 0)==S_OK)
+		if (ev == EC_COMPLETE || ev == EC_USERABORT)
+		{
+			printf("Done!\n");
+			stop = TRUE;
+		}
+		else if (ev == EC_ERRORABORT)
+		{
+			printf("An error occured: HRESULT=%x\n", p1);
+			mediaControl->Stop();
+			stop = TRUE;
+		}
+		mediaEvent->FreeEventParams(ev, p1, p2);
+
+		if (bSize == 0)
+		{
+			// Try to get current buffer size
+			pSampleGrabber->GetCurrentBuffer(&bSize, NULL);
+
+			// If the buffer is null return
+			if (bSize == 0)
+				return false;
+		}
+
+		HRESULT hr = pSampleGrabber->GetCurrentBuffer( &bSize, (long*)frameData);
+
+		return true;
+	}
+	else
+		return false;
+}
+
+void DSVideoCapture::Finish()
+{
+	printf("Finishing");
+
+	mediaControl->Stop();
 	CoUninitialize();
+}
+
+int DSVideoCapture::GetSampleWidth()
+{
+	return bitmapInfo.bmiHeader.biWidth;
+}
+
+int DSVideoCapture::GetSampleHeight()
+{
+	return bitmapInfo.bmiHeader.biHeight;
+}
+
+int DSVideoCapture::GetSampleChannels()
+{
+	return bitmapInfo.bmiHeader.biBitCount / 8;
 }
